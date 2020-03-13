@@ -18,11 +18,9 @@ public class TransformationController {
 
     @PostMapping("/batches")
     public void takeAndHandleAndSaveDataToDB(@RequestBody byte[] bytes){
-
-        transformationService.takeBytesTransformToZipUnpackAndMakeXml(bytes);
-
+        //TODO this method do a lot of work, may be should be better to do adding date and etc in @after of read for this in WWW
+        transformationService.handleRequestBodyData(bytes);
     }
-
 
     @GetMapping("/batches")
     public String getListOfAllUploadsOrderedByDate(){
