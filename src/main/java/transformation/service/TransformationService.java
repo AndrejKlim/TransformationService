@@ -8,8 +8,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
-import transformation.domain.Batch;
-import transformation.domain.Item;
+import transformation.domain.entity.Batch;
+import transformation.domain.entity.Item;
 import transformation.repositories.BatchRepository;
 import transformation.repositories.ItemRepository;
 
@@ -42,12 +42,24 @@ public class TransformationService {
     }
 
     public void handleRequestBodyData(byte[] bytes){
+        //method for takeAndHandleAndSaveDataToDB
+        //TODO takeBytesTransformToZipUnpackAndMakeXml can return file name, next this file should be saved to db
         takeBytesTransformToZipUnpackAndMakeXml(bytes);
-        File xml = new File("/home/klim/IdeaProjects/TransformationService/src/main/resources/1.xml");
+        File xml = new File("/home/klim/IdeaProjects/TransformationService/src/main/resources/2.xml");
         saveBatchToDb(xml);
     }
 
-    public void saveBatchToDb(File file){
+    public List<Batch> getBatchesFromDBOrderedByUploadDate(int offset, int limit){
+        // method for getListOfAllUploadsOrderedByDate method in controller
+        return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
+    }
+
+    public List<Item> getItems(int offset, int limit, Batch batch){
+        //method for getBatchContent method in controller
+        return itemRepository.findAllByBatch_Id(batch.getId(), PageRequest.of(offset, limit));
+    }
+
+    private void saveBatchToDb(File file){
         Batch batch = new Batch();
         List<Item> items = getItemsFromXml(file);
         batch.setSize(getSizeOfBatch(file));
@@ -56,10 +68,6 @@ public class TransformationService {
         saveItemsToDB(items);
         batch.setItemList(items);
         batchRepository.save(batch);
-    }
-
-    public List<Batch> getBatches(int offset, int limit){
-        return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
     }
 
     private List<Item> getItemsFromXml(File file){

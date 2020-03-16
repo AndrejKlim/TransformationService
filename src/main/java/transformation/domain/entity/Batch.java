@@ -1,4 +1,4 @@
-package transformation.domain;
+package transformation.domain.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 

@@ -2,7 +2,7 @@ package transformation.repositories;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.CrudRepository;
-import transformation.domain.Batch;
+import transformation.domain.entity.Batch;
 
 import java.util.List;
 

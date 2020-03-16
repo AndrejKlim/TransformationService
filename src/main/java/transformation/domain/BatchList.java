@@ -1,5 +1,7 @@
 package transformation.domain;
 
+import transformation.domain.entity.Batch;
+
 import java.util.List;
 
 public class BatchList {

@@ -1,4 +1,6 @@
-package transformation.domain;
+package transformation.domain.entity;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import javax.persistence.*;
 
@@ -16,6 +18,7 @@ public class Item {
     private String body;
 
     @ManyToOne(cascade = CascadeType.ALL)
+    @JsonIgnore
     private Batch batch;
 
     public Item() {

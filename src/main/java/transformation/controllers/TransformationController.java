@@ -1,6 +1,8 @@
 package transformation.controllers;
 
 import org.springframework.web.bind.annotation.*;
+import transformation.domain.ItemList;
+import transformation.domain.entity.Batch;
 import transformation.domain.BatchList;
 import transformation.service.TransformationService;
 
@@ -25,11 +27,13 @@ public class TransformationController {
     public BatchList getListOfAllUploadsOrderedByDate(@RequestParam(value = "offset", defaultValue = "0") Integer offset,
                                                       @RequestParam(value = "limit", defaultValue = "50") Integer limit){
 
-        return new BatchList(transformationService.getBatches(offset, limit));
+        return new BatchList(transformationService.getBatchesFromDBOrderedByUploadDate(offset, limit));
     }
 
-    @GetMapping("/batches/{batchId}")
-    public String getBatchContent(){
-        return null;
+    @GetMapping("/batches/{batch}/items")
+    public ItemList getBatchContent(@RequestParam(value = "offset", defaultValue = "0") Integer offset,
+                                    @RequestParam(value = "limit", defaultValue = "50") Integer limit,
+                                    @PathVariable Batch batch){
+        return new ItemList(transformationService.getItems(offset, limit, batch));
     }
 }
