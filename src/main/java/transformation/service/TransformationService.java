@@ -1,5 +1,7 @@
 package transformation.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -49,14 +51,34 @@ public class TransformationService {
         saveBatchToDb(xml);
     }
 
-    public List<Batch> getBatchesFromDBOrderedByUploadDate(int offset, int limit){
-        // method for getListOfAllUploadsOrderedByDate method in controller
-        return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
+
+
+    public String getBatchesFromDBInJsonOrderedByUploadDate(int offset, int limit){
+        ObjectMapper objectMapper = new ObjectMapper();
+        String response = "";
+        try {
+            response = objectMapper.writeValueAsString(getBatchesFromDBOrderedByUploadDate(offset, limit));
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return response;
     }
 
-    public List<Item> getItems(int offset, int limit, Batch batch){
+    public String getItemsFromDBByBatchInJson(int offset, int limit, Batch batch){
         //method for getBatchContent method in controller
-        return itemRepository.findAllByBatch_Id(batch.getId(), PageRequest.of(offset, limit));
+        ObjectMapper objectMapper = new ObjectMapper();
+        String response = "";
+        try {
+            response = objectMapper.writeValueAsString(itemRepository.findAllByBatch_Id(batch.getId(), PageRequest.of(offset, limit)));
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return response;
+    }
+
+    private List<Batch> getBatchesFromDBOrderedByUploadDate(int offset, int limit){
+        // method for getListOfAllUploadsOrderedByDate method in controller
+        return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
     }
 
     private void saveBatchToDb(File file){
