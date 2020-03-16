@@ -1,5 +1,7 @@
 package transformation.service;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -45,35 +47,22 @@ public class TransformationService {
         saveBatchToDb(xml);
     }
 
-    public void takeBytesTransformToZipUnpackAndMakeXml(byte[] bytes){
-
-        byte[] buffer = new  byte[2048];
-
-        Path outDir = Paths.get("src/main/resources");
-
-        try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
-             BufferedInputStream bis = new BufferedInputStream(byteArrayInputStream);
-             ZipInputStream zipInputStream = new ZipInputStream(bis)) // try with resources, close them after
-        {
-            ZipEntry entry;
-            while ((entry = zipInputStream.getNextEntry()) != null){
-                Path filePAth = outDir.resolve((entry.getName()));
-
-                try(FileOutputStream fos = new FileOutputStream(filePAth.toFile());
-                    BufferedOutputStream bos = new BufferedOutputStream(fos, buffer.length)){
-
-                    int len;
-                    while ((len = zipInputStream.read(buffer)) > 0){
-                        bos.write(buffer,0,len);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    public void saveBatchToDb(File file){
+        Batch batch = new Batch();
+        List<Item> items = getItemsFromXml(file);
+        batch.setSize(getSizeOfBatch(file));
+        batch.setUploadDate(getBatchUploadDate());
+        items.forEach(item -> item.setBatch(batch));
+        saveItemsToDB(items);
+        batch.setItemList(items);
+        batchRepository.save(batch);
     }
 
-    public List<Item> getItemsFromXml(File file){
+    public List<Batch> getBatches(int offset, int limit){
+        return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
+    }
+
+    private List<Item> getItemsFromXml(File file){
         // parse xml using DOM model and put data to Item object list with "topic" and "subject" fields filled
 
         List<Item> itemFromXmlList = new ArrayList<>();
@@ -108,21 +97,40 @@ public class TransformationService {
         return itemFromXmlList;
     }
 
-    public void saveItemsToDB(List<Item> items){
-        for (Item item : items) {
-            itemRepository.save(item);
+    private void takeBytesTransformToZipUnpackAndMakeXml(byte[] bytes){
+
+        //TODO may be i should split this method to 2 or 3 smaller methods
+
+        byte[] buffer = new  byte[2048];
+
+        Path outDir = Paths.get("src/main/resources");
+
+        try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
+             BufferedInputStream bis = new BufferedInputStream(byteArrayInputStream);
+             ZipInputStream zipInputStream = new ZipInputStream(bis)) // try with resources, close them after
+        {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null){
+                Path filePAth = outDir.resolve((entry.getName()));
+
+                try(FileOutputStream fos = new FileOutputStream(filePAth.toFile());
+                    BufferedOutputStream bos = new BufferedOutputStream(fos, buffer.length)){
+
+                    int len;
+                    while ((len = zipInputStream.read(buffer)) > 0){
+                        bos.write(buffer,0,len);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
-    public void saveBatchToDb(File file){
-        Batch batch = new Batch();
-        List<Item> items = getItemsFromXml(file);
-        batch.setSize(getSizeOfBatch(file));
-        batch.setUploadDate(getBatchUploadDate());
-        items.forEach(item -> item.setBatch(batch));
-        saveItemsToDB(items);
-        batch.setItemList(items);
-        batchRepository.save(batch);
+    private void saveItemsToDB(List<Item> items){
+        for (Item item : items) {
+            itemRepository.save(item);
+        }
     }
 
     private String getBatchUploadDate() {

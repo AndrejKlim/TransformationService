@@ -1,5 +1,7 @@
 package transformation.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import javax.persistence.*;
 import java.util.List;
 
@@ -17,6 +19,7 @@ public class Batch {
     private String uploadDate;
 
     @OneToMany(mappedBy = "batch", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JsonIgnore
     private List<Item> itemList;
 
     public Batch() {
