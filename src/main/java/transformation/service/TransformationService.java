@@ -45,9 +45,9 @@ public class TransformationService {
 
     public void handleRequestBodyData(byte[] bytes){
         //method for takeAndHandleAndSaveDataToDB
-        //TODO takeBytesTransformToZipUnpackAndMakeXml can return file name, next this file should be saved to db
-        File directoryWithXmlFiles = takeBytesTransformToZipUnpackAndMakeXml(bytes);
-        saveBatchToDb(directoryWithXmlFiles);
+        String uploadDate = getBatchUploadDate();
+        File directoryWithXmlFiles = takeBytesTransformToZipUnpackAndMakeXml(bytes, uploadDate);
+        saveBatchToDb(directoryWithXmlFiles, uploadDate);
     }
 
 
@@ -80,7 +80,7 @@ public class TransformationService {
         return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
     }
 
-    private void saveBatchToDb(File dirWithXmlFiles){
+    private void saveBatchToDb(File dirWithXmlFiles, String date){
         Batch batch = new Batch();
         List<Item> items = new ArrayList<>();
         int size = 0;
@@ -94,7 +94,7 @@ public class TransformationService {
         }
         batch.setItemList(items);
         batch.setSize(size);
-        batch.setUploadDate(getBatchUploadDate());
+        batch.setUploadDate(date);
         items.forEach(item -> item.setBatch(batch));
         batch.setItemList(items);
         batchRepository.save(batch);
@@ -137,7 +137,7 @@ public class TransformationService {
         return itemFromXmlList;
     }
 
-    private File takeBytesTransformToZipUnpackAndMakeXml(byte[] bytes){
+    private File takeBytesTransformToZipUnpackAndMakeXml(byte[] bytes, String date){
         // bytes - byte array received from request body, which are zip archive
         // return - File object that represents directory where the unpacked files are located
         //TODO may be i should split this method to 2 or 3 smaller methods
@@ -146,7 +146,7 @@ public class TransformationService {
 
         Path outDir = Paths.get("src/main/resources");
         //TODO may be i should connect upload date what writes to directory and what writes to DB (mismatch is near 0,5 s) for big files it can be greater
-        File zipEntriesDirectory = new File(outDir.resolve(getBatchUploadDate()).toString()); // create dir with name == date
+        File zipEntriesDirectory = new File(outDir.resolve(date).toString()); // create dir with name == date
 
         try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
              BufferedInputStream bis = new BufferedInputStream(byteArrayInputStream);
@@ -174,12 +174,6 @@ public class TransformationService {
         }
 
         return zipEntriesDirectory;
-    }
-
-    private void saveItemsToDB(List<Item> items){
-        for (Item item : items) {
-            itemRepository.save(item);
-        }
     }
 
     private String getBatchUploadDate() {
