@@ -17,10 +17,8 @@ public class TransformationController {
     @PostMapping("/batches")
     public void takeAndHandleAndSaveDataToDB(@RequestBody byte[] bytes){
         //TODO this method do a lot of work, may be should be better to do adding date and etc in @after of read for this in WWW
-        //TODO may be i should save files with names=date of uploading or in different packages
         transformationService.handleRequestBodyData(bytes);
     }
-    //TODO in task we take set of xml files in zip archive, so fix it
 
     @GetMapping("/batches")
     public String getListOfAllUploadsOrderedByDate(@RequestParam(value = "offset", defaultValue = "0") Integer offset,
