@@ -5,11 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.SAXException;
 import transformation.domain.entity.Batch;
 import transformation.domain.entity.Item;
 import transformation.repositories.BatchRepository;
@@ -18,11 +13,7 @@ import transformation.service.archiveCreator.IArchiveCreator;
 import transformation.service.archiveUnpacker.IArchiveUnpacker;
 import transformation.service.fileParsers.IFileParser;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
-import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -96,14 +87,13 @@ public class TransformationService {
         List<Item> items = new ArrayList<>();
         int size = 0;
         if (dirWithXmlFiles.listFiles() != null){
-            for (File xml : dirWithXmlFiles.listFiles()){
-                List<Item> tempList = fileParser.getItemsFromFile(xml);
+            for (File file : dirWithXmlFiles.listFiles()){
+                List<Item> tempList = fileParser.getItemsFromFile(file);
                 items.addAll(tempList);
 
-                size = size + getSizeOfBatch(xml);
+                size = size + getSizeOfBatch(file);
             }
         }
-        batch.setItemList(items);
         batch.setSize(size);
         batch.setUploadDate(date);
         items.forEach(item -> item.setBatch(batch));
