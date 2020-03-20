@@ -14,6 +14,8 @@ import transformation.domain.entity.Batch;
 import transformation.domain.entity.Item;
 import transformation.repositories.BatchRepository;
 import transformation.repositories.ItemRepository;
+import transformation.service.archiveCreator.IArchiveCreator;
+import transformation.service.archiveUnpacker.IArchiveUnpacker;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -37,16 +39,21 @@ public class TransformationService {
 
     private final ItemRepository itemRepository;
     private final BatchRepository batchRepository;
+    private final IArchiveCreator archiveCreator;
+    private final IArchiveUnpacker archiveUnpacker;
 
-    public TransformationService(ItemRepository itemRepository, BatchRepository batchRepository){
+    public TransformationService(ItemRepository itemRepository, BatchRepository batchRepository, IArchiveCreator archiveCreator, IArchiveUnpacker archiveUnpacker){
         this.itemRepository = itemRepository;
         this.batchRepository = batchRepository;
+        this.archiveCreator = archiveCreator;
+        this.archiveUnpacker = archiveUnpacker;
     }
 
     public void handleRequestBodyData(byte[] bytes){
         //method for takeAndHandleAndSaveDataToDB
         String uploadDate = getBatchUploadDate();
-        File directoryWithXmlFiles = takeBytesTransformToZipUnpackAndMakeXml(bytes, uploadDate);
+        File zipArchive = archiveCreator.createZIPArchiveFromByteArray(bytes, uploadDate);
+        File directoryWithXmlFiles = archiveUnpacker.unpackArchive(zipArchive, uploadDate);
         saveBatchToDb(directoryWithXmlFiles, uploadDate);
     }
 
@@ -137,46 +144,7 @@ public class TransformationService {
         return itemFromXmlList;
     }
 
-    private File takeBytesTransformToZipUnpackAndMakeXml(byte[] bytes, String date){
-        // bytes - byte array received from request body, which are zip archive
-        // return - File object that represents directory where the unpacked files are located
-        //TODO may be i should split this method to 2 or 3 smaller methods
-
-        byte[] buffer = new  byte[2048];
-
-        Path outDir = Paths.get("src/main/resources");
-        //TODO may be i should connect upload date what writes to directory and what writes to DB (mismatch is near 0,5 s) for big files it can be greater
-        File zipEntriesDirectory = new File(outDir.resolve(date).toString()); // create dir with name == date
-
-        try (ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(bytes);
-             BufferedInputStream bis = new BufferedInputStream(byteArrayInputStream);
-             ZipInputStream zipInputStream = new ZipInputStream(bis)) // try with resources, close them after
-        {
-            ZipEntry entry;
-
-            zipEntriesDirectory.mkdir();
-            while ((entry = zipInputStream.getNextEntry()) != null){
-                Path filePath = Paths.get(zipEntriesDirectory.toURI());
-
-                filePath = filePath.resolve((entry.getName()));
-
-                try(FileOutputStream fos = new FileOutputStream(filePath.toFile());
-                    BufferedOutputStream bos = new BufferedOutputStream(fos, buffer.length)){
-
-                    int len;
-                    while ((len = zipInputStream.read(buffer)) > 0){
-                        bos.write(buffer,0,len);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        return zipEntriesDirectory;
-    }
-
-    private String getBatchUploadDate() {
+    public String getBatchUploadDate() {
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
         Date date = new Date();
         return dateFormat.format(date);
