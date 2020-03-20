@@ -16,20 +16,18 @@ import transformation.repositories.BatchRepository;
 import transformation.repositories.ItemRepository;
 import transformation.service.archiveCreator.IArchiveCreator;
 import transformation.service.archiveUnpacker.IArchiveUnpacker;
+import transformation.service.fileParsers.IFileParser;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.*;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.File;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 
 
@@ -41,12 +39,18 @@ public class TransformationService {
     private final BatchRepository batchRepository;
     private final IArchiveCreator archiveCreator;
     private final IArchiveUnpacker archiveUnpacker;
+    private final IFileParser fileParser;
 
-    public TransformationService(ItemRepository itemRepository, BatchRepository batchRepository, IArchiveCreator archiveCreator, IArchiveUnpacker archiveUnpacker){
+    public TransformationService(ItemRepository itemRepository,
+                                 BatchRepository batchRepository,
+                                 IArchiveCreator archiveCreator,
+                                 IArchiveUnpacker archiveUnpacker,
+                                 IFileParser fileParser){
         this.itemRepository = itemRepository;
         this.batchRepository = batchRepository;
         this.archiveCreator = archiveCreator;
         this.archiveUnpacker = archiveUnpacker;
+        this.fileParser = fileParser;
     }
 
     public void handleRequestBodyData(byte[] bytes){
@@ -54,7 +58,7 @@ public class TransformationService {
         String uploadDate = getBatchUploadDate();
         File zipArchive = archiveCreator.createZIPArchiveFromByteArray(bytes, uploadDate);
         File directoryWithXmlFiles = archiveUnpacker.unpackArchive(zipArchive, uploadDate);
-        saveBatchToDb(directoryWithXmlFiles, uploadDate);
+        createAndSaveBatchToDb(directoryWithXmlFiles, uploadDate);
     }
 
 
@@ -87,13 +91,13 @@ public class TransformationService {
         return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
     }
 
-    private void saveBatchToDb(File dirWithXmlFiles, String date){
+    private void createAndSaveBatchToDb(File dirWithXmlFiles, String date){
         Batch batch = new Batch();
         List<Item> items = new ArrayList<>();
         int size = 0;
         if (dirWithXmlFiles.listFiles() != null){
             for (File xml : dirWithXmlFiles.listFiles()){
-                List<Item> tempList = getItemsFromXml(xml);
+                List<Item> tempList = fileParser.getItemsFromFile(xml);
                 items.addAll(tempList);
 
                 size = size + getSizeOfBatch(xml);
@@ -107,44 +111,7 @@ public class TransformationService {
         batchRepository.save(batch);
     }
 
-
-    private List<Item> getItemsFromXml(File xmlFile){
-        // parse xml using DOM model and put data to Item object list with "topic" and "subject" fields filled
-        // file - File object that represents xml file
-        // return - List of item
-        List<Item> itemFromXmlList = new ArrayList<>();
-
-        try{
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            DocumentBuilder builder = factory.newDocumentBuilder();
-
-            Document document = builder.parse(xmlFile);
-
-            document.getDocumentElement().normalize();
-
-            NodeList nodeList = document.getElementsByTagName("item");
-
-            for (int temp = 0; temp < nodeList.getLength(); temp++) {
-                Node node = nodeList.item(temp);
-                Item item = new Item();
-                if (node.getNodeType() == Node.ELEMENT_NODE) {
-                    Element element = (Element) node;
-                    item.setSubject(element.getElementsByTagName("topic").item(0).getTextContent());
-                    item.setBody(element.getElementsByTagName("content").item(0).getTextContent());
-                }
-                itemFromXmlList.add(item);
-            }
-        } catch (ParserConfigurationException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (SAXException e) {
-            e.printStackTrace();
-        }
-        return itemFromXmlList;
-    }
-
-    public String getBatchUploadDate() {
+    private String getBatchUploadDate() {
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
         Date date = new Date();
         return dateFormat.format(date);
