@@ -1,31 +1,28 @@
 package transformation.controllers;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import transformation.domain.entity.Batch;
 import transformation.service.TransformationService;
 import transformation.service.archiveCreator.ZIPArchiveCreatorService;
 import transformation.service.archiveUnpacker.ZIPArchiveUnpackerService;
 
+import java.net.URI;
+
 
 @RestController
 public class TransformationController {
 
     private final TransformationService transformationService;
-    private final ZIPArchiveCreatorService zipArchiveCreatorService;
-    private final ZIPArchiveUnpackerService zipArchiveUnpackerService;
 
-    public TransformationController(TransformationService transformationService, ZIPArchiveCreatorService zipArchiveCreatorService, ZIPArchiveUnpackerService zipArchiveUnpackerService) {
+    public TransformationController(TransformationService transformationService) {
         this.transformationService = transformationService;
-        this.zipArchiveCreatorService = zipArchiveCreatorService;
-        this.zipArchiveUnpackerService = zipArchiveUnpackerService;
     }
 
     @PostMapping("/batches")
-    public void takeAndHandleAndSaveDataToDB(@RequestBody byte[] bytes){
-        //TODO this method do a lot of work, may be should be better to do adding date and etc in @after of read for this in WWW
-        //The URI of the created member resource is automatically assigned and returned in the response Location header field.  - return
-        transformationService.handleRequestBodyData(bytes);
-        //return null;
+    public ResponseEntity<URI> takeAndHandleAndSaveDataToDB(@RequestBody byte[] bytes){
+        URI uri = transformationService.handleRequestBodyData(bytes); // method handles request and return URI to saved file
+        return ResponseEntity.ok(uri);
     }
 
     @GetMapping("/batches")

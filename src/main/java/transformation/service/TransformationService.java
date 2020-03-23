@@ -14,6 +14,8 @@ import transformation.service.archiveUnpacker.IArchiveUnpacker;
 import transformation.service.fileParsers.IFileParser;
 
 import java.io.File;
+import java.net.URI;
+import java.net.URLConnection;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -44,12 +46,13 @@ public class TransformationService {
         this.fileParser = fileParser;
     }
 
-    public void handleRequestBodyData(byte[] bytes){
+    public URI handleRequestBodyData(byte[] bytes){
         //method for takeAndHandleAndSaveDataToDB
         String uploadDate = getBatchUploadDate();
         File zipArchive = archiveCreator.createZIPArchiveFromByteArray(bytes, uploadDate);
         File directoryWithXmlFiles = archiveUnpacker.unpackArchive(zipArchive, uploadDate);
         createAndSaveBatchToDb(directoryWithXmlFiles, uploadDate);
+        return zipArchive.toURI();
     }
 
 
