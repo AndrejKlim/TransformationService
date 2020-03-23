@@ -2,6 +2,7 @@ package transformation.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -15,7 +16,6 @@ import transformation.service.fileParsers.IFileParser;
 
 import java.io.File;
 import java.net.URI;
-import java.net.URLConnection;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -38,7 +38,7 @@ public class TransformationService {
                                  BatchRepository batchRepository,
                                  IArchiveCreator archiveCreator,
                                  IArchiveUnpacker archiveUnpacker,
-                                 IFileParser fileParser){
+                                 @Qualifier("CSV") IFileParser fileParser){
         this.itemRepository = itemRepository;
         this.batchRepository = batchRepository;
         this.archiveCreator = archiveCreator;
