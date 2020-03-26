@@ -1,11 +1,12 @@
 package transformation.controllers;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import transformation.domain.entity.Batch;
 import transformation.service.TransformationService;
 
-import java.net.URI;
+import java.util.concurrent.ForkJoinPool;
 
 
 @RestController
@@ -18,9 +19,13 @@ public class TransformationController {
     }
 
     @PostMapping("/batches")
-    public ResponseEntity<URI> takeAndHandleAndSaveDataToDB(@RequestBody byte[] bytes){
-        URI uri = transformationService.handleRequestBodyData(bytes); // method handles request and return URI to saved file
-        return ResponseEntity.ok(uri);
+    public ResponseEntity<?> takeAndHandleAndSaveDataToDB(@RequestBody byte[] bytes){
+
+        ForkJoinPool.commonPool().submit(() -> {
+            transformationService.handleRequestBodyData(bytes);
+        });
+
+        return new ResponseEntity<>(HttpStatus.ACCEPTED);
     }
 
     @GetMapping("/batches")
