@@ -1,5 +1,8 @@
 package transformation.service.fileParsers;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import transformation.domain.entity.Item;
 
@@ -16,7 +19,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@Qualifier("XML")
 public class XMLStAXFileParserService implements IFileParser {
+
+    private static final Logger LOGGER = LogManager.getLogger(XMLStAXFileParserService.class);
 
     @Override
     public List<Item> getItemsFromFile(File fileToParse) {
@@ -49,14 +55,13 @@ public class XMLStAXFileParserService implements IFileParser {
                 if (nextEvent.isEndElement()){
                     EndElement endElement = nextEvent.asEndElement();
                     if (endElement.getName().getLocalPart().equals("item")){
+                        LOGGER.debug(String.format("Item that added to list:\n item body - %s,\n item subject - %s",item.getBody(),item.getSubject()));
                         items.add(item);
                     }
                 }
             }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (XMLStreamException e) {
-            e.printStackTrace();
+        } catch (FileNotFoundException | XMLStreamException e) {
+            LOGGER.error("Error during reading xml file", e);
         }
 
         return items;

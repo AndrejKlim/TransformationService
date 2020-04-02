@@ -1,5 +1,7 @@
 package transformation.service.archiveUnpacker;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
@@ -11,12 +13,14 @@ import java.util.zip.ZipInputStream;
 @Service
 public class ZIPArchiveUnpackerService implements IArchiveUnpacker {
 
+    private static final Logger LOGGER = LogManager.getLogger(ZIPArchiveUnpackerService.class);
 
     @Override
     public File unpackArchive(File archive, String date) {
 
         byte[] buffer = new  byte[2048];
         File dirToSaveUnpackedFiles = SAVE_DIRECTORY.resolve(date).toFile();
+        LOGGER.debug("Taken zip archive", dirToSaveUnpackedFiles.getName());
         dirToSaveUnpackedFiles.mkdir();
         try (FileInputStream fis = new FileInputStream(archive);
              ZipInputStream zis = new ZipInputStream(fis)){
@@ -35,9 +39,10 @@ public class ZIPArchiveUnpackerService implements IArchiveUnpacker {
                         bos.write(buffer, 0, len);
                     }
                 }
+                LOGGER.info(String.format("Created unpacked file %s", filePath.toString()));
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            LOGGER.error("Error during unpacking zip archive", e);
         }
         return dirToSaveUnpackedFiles;
     }

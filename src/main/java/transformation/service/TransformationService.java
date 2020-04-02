@@ -2,6 +2,8 @@ package transformation.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -15,7 +17,6 @@ import transformation.service.archiveUnpacker.IArchiveUnpacker;
 import transformation.service.fileParsers.IFileParser;
 
 import java.io.File;
-import java.net.URI;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -27,6 +28,8 @@ import java.util.List;
 
 @Service
 public class TransformationService {
+
+    private static final Logger LOGGER = LogManager.getLogger(TransformationService.class);
 
     private final ItemRepository itemRepository;
     private final BatchRepository batchRepository;
@@ -46,13 +49,12 @@ public class TransformationService {
         this.fileParser = fileParser;
     }
 
-    public URI handleRequestBodyData(byte[] bytes){
+    public void handleRequestBodyData(byte[] bytes){
         //method for takeAndHandleAndSaveDataToDB
         String uploadDate = getBatchUploadDate();
         File zipArchive = archiveCreator.createZIPArchiveFromByteArray(bytes, uploadDate);
         File directoryWithXmlFiles = archiveUnpacker.unpackArchive(zipArchive, uploadDate);
         createAndSaveBatchToDb(directoryWithXmlFiles, uploadDate);
-        return zipArchive.toURI();
     }
 
 
@@ -62,8 +64,9 @@ public class TransformationService {
         String response = "";
         try {
             response = objectMapper.writeValueAsString(getBatchesFromDBOrderedByUploadDate(offset, limit));
+            LOGGER.debug(String.format("Batch list response %s", response));
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            LOGGER.error("Error during Batch list Json response creating", e);
         }
         return response;
     }
@@ -74,8 +77,9 @@ public class TransformationService {
         String response = "";
         try {
             response = objectMapper.writeValueAsString(itemRepository.findAllByBatch_Id(batch.getId(), PageRequest.of(offset, limit)));
+            LOGGER.debug(String.format("Item list response - %s", response));
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            LOGGER.error("Error during Item list Json response creating", e);
         }
         return response;
     }
@@ -101,6 +105,7 @@ public class TransformationService {
         batch.setUploadDate(date);
         items.forEach(item -> item.setBatch(batch));
         batch.setItemList(items);
+        LOGGER.debug(String.format("Current batch status:\n batch size - %d;\n batch date - %s;\n item list size - %d", size, date, items.size()));
         batchRepository.save(batch);
     }
 
