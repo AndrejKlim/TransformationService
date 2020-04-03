@@ -20,7 +20,7 @@ public class ZIPArchiveUnpackerService implements IArchiveUnpacker {
 
         byte[] buffer = new  byte[2048];
         File dirToSaveUnpackedFiles = SAVE_DIRECTORY.resolve(date).toFile();
-        LOGGER.debug("Taken zip archive", dirToSaveUnpackedFiles.getName());
+        LOGGER.debug(String.format("Taken zip archive, %s", dirToSaveUnpackedFiles.getName()));
         dirToSaveUnpackedFiles.mkdir();
         try (FileInputStream fis = new FileInputStream(archive);
              ZipInputStream zis = new ZipInputStream(fis)){
