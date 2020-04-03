@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -14,12 +13,14 @@ import transformation.repositories.BatchRepository;
 import transformation.repositories.ItemRepository;
 import transformation.service.archiveCreator.IArchiveCreator;
 import transformation.service.archiveUnpacker.IArchiveUnpacker;
+import transformation.service.factory.IFileParserFactory;
 import transformation.service.fileParsers.IFileParser;
 
 import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 
@@ -35,18 +36,20 @@ public class TransformationService {
     private final BatchRepository batchRepository;
     private final IArchiveCreator archiveCreator;
     private final IArchiveUnpacker archiveUnpacker;
-    private final IFileParser fileParser;
+    private final IFileParserFactory fileParserFactory;
+
+    private IFileParser fileParser;
 
     public TransformationService(ItemRepository itemRepository,
                                  BatchRepository batchRepository,
                                  IArchiveCreator archiveCreator,
                                  IArchiveUnpacker archiveUnpacker,
-                                 @Qualifier("CSV") IFileParser fileParser){
+                                 IFileParserFactory iFileParserFactory) {
         this.itemRepository = itemRepository;
         this.batchRepository = batchRepository;
         this.archiveCreator = archiveCreator;
         this.archiveUnpacker = archiveUnpacker;
-        this.fileParser = fileParser;
+        this.fileParserFactory = iFileParserFactory;
     }
 
     public void handleRequestBodyData(byte[] bytes){
@@ -54,6 +57,11 @@ public class TransformationService {
         String uploadDate = getBatchUploadDate();
         File zipArchive = archiveCreator.createZIPArchiveFromByteArray(bytes, uploadDate);
         File directoryWithXmlFiles = archiveUnpacker.unpackArchive(zipArchive, uploadDate);
+
+        //let all files in archive have same extensions
+        String filesExt = getFileExtension(getAllFilesInDirectory(directoryWithXmlFiles).get(0));
+        fileParser = fileParserFactory.getParser(filesExt);
+
         createAndSaveBatchToDb(directoryWithXmlFiles, uploadDate);
     }
 
@@ -93,20 +101,34 @@ public class TransformationService {
         Batch batch = new Batch();
         List<Item> items = new ArrayList<>();
         int size = 0;
-        if (dirWithXmlFiles.listFiles() != null){
-            for (File file : dirWithXmlFiles.listFiles()){
-                List<Item> tempList = fileParser.getItemsFromFile(file);
-                items.addAll(tempList);
 
-                size = size + getSizeOfBatch(file);
-            }
+        for (File file : getAllFilesInDirectory(dirWithXmlFiles)){
+            List<Item> tempList = fileParser.getItemsFromFile(file);
+            items.addAll(tempList);
+
+            size = size + getSizeOfBatch(file);
         }
+
         batch.setSize(size);
         batch.setUploadDate(date);
         items.forEach(item -> item.setBatch(batch));
         batch.setItemList(items);
+
         LOGGER.debug(String.format("Current batch status:\n batch size - %d;\n batch date - %s;\n item list size - %d", size, date, items.size()));
+
         batchRepository.save(batch);
+    }
+
+    private String getFileExtension(File file){
+        return file.getName().substring(file.getName().length()-3);
+    }
+
+    private List<File> getAllFilesInDirectory(File directory){
+        List<File> files = new ArrayList<>();
+        if (directory.isDirectory() && (directory.listFiles() != null)){
+            files.addAll(Arrays.asList(directory.listFiles()));
+        }
+        return files;
     }
 
     private String getBatchUploadDate() {
