@@ -25,8 +25,6 @@ import java.util.Date;
 import java.util.List;
 
 
-
-
 @Service
 public class TransformationService {
 
@@ -56,13 +54,13 @@ public class TransformationService {
         //method for takeAndHandleAndSaveDataToDB
         String uploadDate = getBatchUploadDate();
         File zipArchive = archiveCreator.createZIPArchiveFromByteArray(bytes, uploadDate);
-        File directoryWithXmlFiles = archiveUnpacker.unpackArchive(zipArchive, uploadDate);
+        File directoryWithFilesToParse = archiveUnpacker.unpackArchive(zipArchive, uploadDate);
 
         //let all files in archive have same extensions
-        String filesExt = getFileExtension(getAllFilesInDirectory(directoryWithXmlFiles).get(0));
+        String filesExt = getFileExtension(getAllFilesInDirectory(directoryWithFilesToParse).get(0));
         fileParser = fileParserFactory.getParser(filesExt);
-
-        createAndSaveBatchToDb(directoryWithXmlFiles, uploadDate);
+        // TODO read how to take limit from config or properties files, not hardcoded
+        createAndSaveBatchToDb(directoryWithFilesToParse, uploadDate, 100);
     }
 
 
@@ -97,25 +95,25 @@ public class TransformationService {
         return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
     }
 
-    private void createAndSaveBatchToDb(File dirWithXmlFiles, String date){
+    private void createAndSaveBatchToDb(File dirWithXmlFiles, String date, int limit){
+
         Batch batch = new Batch();
-        List<Item> items = new ArrayList<>();
+        List<Item> items;
         int size = 0;
+        batchRepository.save(batch);
 
         for (File file : getAllFilesInDirectory(dirWithXmlFiles)){
-            List<Item> tempList = fileParser.getItemsFromFile(file);
-            items.addAll(tempList);
 
+            do{
+                items = fileParser.getItemsFromFile(file, limit);
+                items.forEach(item -> item.setBatch(batch));
+                itemRepository.saveAll(items);
+            }while (items.size() >= limit);
             size = size + getSizeOfBatch(file);
         }
 
         batch.setSize(size);
         batch.setUploadDate(date);
-        items.forEach(item -> item.setBatch(batch));
-        batch.setItemList(items);
-
-        LOGGER.debug(String.format("Current batch status:\n batch size - %d;\n batch date - %s;\n item list size - %d", size, date, items.size()));
-
         batchRepository.save(batch);
     }
 
