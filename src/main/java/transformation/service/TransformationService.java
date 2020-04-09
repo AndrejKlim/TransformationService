@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,9 @@ public class TransformationService {
 
     private IFileParser fileParser;
 
+    @Value("${app.batchSizeLimit}")
+    int batchSize;
+
     public TransformationService(ItemRepository itemRepository,
                                  BatchRepository batchRepository,
                                  IArchiveCreator archiveCreator,
@@ -59,8 +63,8 @@ public class TransformationService {
         //let all files in archive have same extensions
         String filesExt = getFileExtension(getAllFilesInDirectory(directoryWithFilesToParse).get(0));
         fileParser = fileParserFactory.getParser(filesExt);
-        // TODO read how to take limit from config or properties files, not hardcoded
-        createAndSaveBatchToDb(directoryWithFilesToParse, uploadDate, 100);
+
+        createAndSaveBatchToDb(directoryWithFilesToParse, uploadDate, batchSize);
     }
 
 
@@ -95,7 +99,7 @@ public class TransformationService {
         return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
     }
 
-    private void createAndSaveBatchToDb(File dirWithXmlFiles, String date, int limit){
+    private void createAndSaveBatchToDb(File dirWithXmlFiles, String date, int batchSize){
 
         Batch batch = new Batch();
         List<Item> items;
@@ -105,10 +109,10 @@ public class TransformationService {
         for (File file : getAllFilesInDirectory(dirWithXmlFiles)){
 
             do{
-                items = fileParser.getItemsFromFile(file, limit);
+                items = fileParser.getItemsFromFile(file, batchSize);
                 items.forEach(item -> item.setBatch(batch));
                 itemRepository.saveAll(items);
-            }while (items.size() >= limit);
+            }while (items.size() >= batchSize);
             size = size + getSizeOfBatch(file);
 
             LOGGER.info(String.format("Parsing file %s ended", file.getPath()));
