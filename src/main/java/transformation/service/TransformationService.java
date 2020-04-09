@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -25,8 +26,6 @@ import java.util.Date;
 import java.util.List;
 
 
-
-
 @Service
 public class TransformationService {
 
@@ -39,6 +38,9 @@ public class TransformationService {
     private final IFileParserFactory fileParserFactory;
 
     private IFileParser fileParser;
+
+    @Value("${app.batchSizeLimit}")
+    int batchSize;
 
     public TransformationService(ItemRepository itemRepository,
                                  BatchRepository batchRepository,
@@ -56,13 +58,13 @@ public class TransformationService {
         //method for takeAndHandleAndSaveDataToDB
         String uploadDate = getBatchUploadDate();
         File zipArchive = archiveCreator.createZIPArchiveFromByteArray(bytes, uploadDate);
-        File directoryWithXmlFiles = archiveUnpacker.unpackArchive(zipArchive, uploadDate);
+        File directoryWithFilesToParse = archiveUnpacker.unpackArchive(zipArchive, uploadDate);
 
         //let all files in archive have same extensions
-        String filesExt = getFileExtension(getAllFilesInDirectory(directoryWithXmlFiles).get(0));
+        String filesExt = getFileExtension(getAllFilesInDirectory(directoryWithFilesToParse).get(0));
         fileParser = fileParserFactory.getParser(filesExt);
 
-        createAndSaveBatchToDb(directoryWithXmlFiles, uploadDate);
+        createAndSaveBatchToDb(directoryWithFilesToParse, uploadDate, batchSize);
     }
 
 
@@ -72,7 +74,7 @@ public class TransformationService {
         String response = "";
         try {
             response = objectMapper.writeValueAsString(getBatchesFromDBOrderedByUploadDate(offset, limit));
-            LOGGER.debug(String.format("Batch list response %s", response));
+            LOGGER.info(String.format("Batch list response %s", response));
         } catch (JsonProcessingException e) {
             LOGGER.error("Error during Batch list Json response creating", e);
         }
@@ -85,7 +87,7 @@ public class TransformationService {
         String response = "";
         try {
             response = objectMapper.writeValueAsString(itemRepository.findAllByBatch_Id(batch.getId(), PageRequest.of(offset, limit)));
-            LOGGER.debug(String.format("Item list response - %s", response));
+            LOGGER.info(String.format("Item list response - %s", response));
         } catch (JsonProcessingException e) {
             LOGGER.error("Error during Item list Json response creating", e);
         }
@@ -97,25 +99,27 @@ public class TransformationService {
         return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
     }
 
-    private void createAndSaveBatchToDb(File dirWithXmlFiles, String date){
+    private void createAndSaveBatchToDb(File dirWithXmlFiles, String date, int batchSize){
+
         Batch batch = new Batch();
-        List<Item> items = new ArrayList<>();
+        List<Item> items;
         int size = 0;
+        batchRepository.save(batch);
 
         for (File file : getAllFilesInDirectory(dirWithXmlFiles)){
-            List<Item> tempList = fileParser.getItemsFromFile(file);
-            items.addAll(tempList);
 
+            do{
+                items = fileParser.getItemsFromFile(file, batchSize);
+                items.forEach(item -> item.setBatch(batch));
+                itemRepository.saveAll(items);
+            }while (items.size() >= batchSize);
             size = size + getSizeOfBatch(file);
+
+            LOGGER.info(String.format("Parsing file %s ended", file.getPath()));
         }
 
         batch.setSize(size);
         batch.setUploadDate(date);
-        items.forEach(item -> item.setBatch(batch));
-        batch.setItemList(items);
-
-        LOGGER.debug(String.format("Current batch status:\n batch size - %d;\n batch date - %s;\n item list size - %d", size, date, items.size()));
-
         batchRepository.save(batch);
     }
 

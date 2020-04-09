@@ -17,7 +17,7 @@ public class Item {
     @Column
     private String body;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JsonIgnore
     private Batch batch;
 

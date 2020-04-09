@@ -27,7 +27,7 @@ public class TransformationController {
 
         ForkJoinPool.commonPool().submit(() -> {
             transformationService.handleRequestBodyData(bytes);
-            LOGGER.debug(String.format("Saving in DB ended in thread %s", Thread.currentThread().getName()));
+            LOGGER.info(String.format("Saving in DB ended in thread %s", Thread.currentThread().getName()));
         });
 
         return new ResponseEntity<>(HttpStatus.ACCEPTED);

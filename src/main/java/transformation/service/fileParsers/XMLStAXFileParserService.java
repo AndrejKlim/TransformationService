@@ -24,46 +24,80 @@ public class XMLStAXFileParserService implements IFileParser {
 
     private static final Logger LOGGER = LogManager.getLogger(XMLStAXFileParserService.class);
 
-    @Override
-    public List<Item> getItemsFromFile(File fileToParse) {
+    int itemsToSkip = 0;
 
-        List<Item> items = new ArrayList<>();
+    @Override
+    public List<Item> getItemsFromFile(File fileToParse, int limit) {
+
+        List<Item> itemsOut = new ArrayList<>(limit);
         Item item = null;
+
         try {
             XMLInputFactory xmlInputFactory = XMLInputFactory.newInstance();
             XMLEventReader reader = xmlInputFactory.createXMLEventReader(new FileInputStream(fileToParse));
 
-            while (reader.hasNext()){
+            if (reader.hasNext()) {
 
-                XMLEvent nextEvent = reader.nextEvent();
-                if (nextEvent.isStartElement()){
-                    StartElement startElement = nextEvent.asStartElement();
-                    switch (startElement.getName().getLocalPart()){
-                        case "item":
-                            item = new Item();
-                            break;
-                        case "topic":
-                            nextEvent = reader.nextEvent();
-                            item.setSubject(nextEvent.asCharacters().getData());
-                            break;
-                        case "content":
-                            nextEvent = reader.nextEvent();
-                            item.setBody(nextEvent.asCharacters().getData());
-                            break;
+                skipItems(reader, itemsToSkip);
+
+                while (itemsOut.size() < limit){
+
+                    XMLEvent nextEvent = reader.nextEvent();
+                    if (nextEvent.isStartElement()) {
+                        StartElement startElement = nextEvent.asStartElement();
+                        switch (startElement.getName().getLocalPart()) {
+                            case "item":
+                                item = new Item();
+                                break;
+                            case "topic":
+                                nextEvent = reader.nextEvent();
+                                item.setSubject(nextEvent.asCharacters().getData());
+                                break;
+                            case "content":
+                                nextEvent = reader.nextEvent();
+                                item.setBody(nextEvent.asCharacters().getData());
+                                break;
+                        }
                     }
-                }
-                if (nextEvent.isEndElement()){
-                    EndElement endElement = nextEvent.asEndElement();
-                    if (endElement.getName().getLocalPart().equals("item")){
-                        LOGGER.debug(String.format("Item that added to list:\n item body - %s,\n item subject - %s",item.getBody(),item.getSubject()));
-                        items.add(item);
+                    if (nextEvent.isEndElement()) {
+                        EndElement endElement = nextEvent.asEndElement();
+                        if (endElement.getName().getLocalPart().equals("item")) {
+                            LOGGER.debug(String.format("Item that added to list:\n item body - %s,\n item subject - %s", item.getBody(), item.getSubject()));
+                            itemsOut.add(item);
+                        }
+                    }
+                    if(!reader.hasNext()){
+                        // if it's end of file, we need to set lines=0 for next files parsing
+                        itemsToSkip = 0;
+                        return itemsOut;
                     }
                 }
             }
         } catch (FileNotFoundException | XMLStreamException e) {
             LOGGER.error("Error during reading xml file", e);
         }
+        itemsToSkip += limit;
+        return itemsOut;
+    }
 
-        return items;
+    private void skipItems(XMLEventReader reader, int linesToSkip){
+        // skip needed number of items
+        // reader take all events, but item ends after </item>
+        // so we iterate all events while found needed and increment counter
+        int counterOfSkippedItems = 0;
+        while (counterOfSkippedItems < linesToSkip){
+            XMLEvent nextEvent;
+            try {
+                nextEvent = reader.nextEvent();
+                if (nextEvent.isEndElement()){
+                    EndElement endElement = nextEvent.asEndElement();
+                    if (endElement.getName().getLocalPart().equals("item")){
+                        counterOfSkippedItems++;
+                    }
+                }
+            } catch (XMLStreamException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

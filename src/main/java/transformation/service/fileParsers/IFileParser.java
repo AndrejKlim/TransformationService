@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface IFileParser {
 
-    List<Item> getItemsFromFile(File fileToParse);
+    List<Item> getItemsFromFile(File fileToParse, int limit);
 }
