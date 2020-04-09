@@ -70,7 +70,7 @@ public class TransformationService {
         String response = "";
         try {
             response = objectMapper.writeValueAsString(getBatchesFromDBOrderedByUploadDate(offset, limit));
-            LOGGER.debug(String.format("Batch list response %s", response));
+            LOGGER.info(String.format("Batch list response %s", response));
         } catch (JsonProcessingException e) {
             LOGGER.error("Error during Batch list Json response creating", e);
         }
@@ -83,7 +83,7 @@ public class TransformationService {
         String response = "";
         try {
             response = objectMapper.writeValueAsString(itemRepository.findAllByBatch_Id(batch.getId(), PageRequest.of(offset, limit)));
-            LOGGER.debug(String.format("Item list response - %s", response));
+            LOGGER.info(String.format("Item list response - %s", response));
         } catch (JsonProcessingException e) {
             LOGGER.error("Error during Item list Json response creating", e);
         }
@@ -110,6 +110,8 @@ public class TransformationService {
                 itemRepository.saveAll(items);
             }while (items.size() >= limit);
             size = size + getSizeOfBatch(file);
+
+            LOGGER.info(String.format("Parsing file %s ended", file.getPath()));
         }
 
         batch.setSize(size);
