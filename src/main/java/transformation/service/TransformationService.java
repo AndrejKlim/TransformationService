@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import transformation.domain.entity.Batch;
 import transformation.domain.entity.Item;
 import transformation.repositories.BatchRepository;
@@ -17,6 +18,7 @@ import transformation.service.archiveUnpacker.IArchiveUnpacker;
 import transformation.service.factory.IFileParserFactory;
 import transformation.service.fileParsers.IFileParser;
 
+import javax.transaction.Transactional;
 import java.io.File;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -99,7 +101,7 @@ public class TransformationService {
         return  batchRepository.findAll(PageRequest.of(offset, limit, Sort.by(Sort.Direction.DESC, "uploadDate")));
     }
 
-    private void createAndSaveBatchToDb(File dirWithXmlFiles, String date, int batchSize){
+    public void createAndSaveBatchToDb(File dirWithXmlFiles, String date, int batchSize){
 
         Batch batch = new Batch();
         List<Item> items;
